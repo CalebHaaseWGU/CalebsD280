@@ -1,0 +1,40 @@
+.container {
+  display: flex;
+  flex-direction: row;
+  max-width: 100%;
+  height: 200vh;
+}
+
+.map-column {
+  flex: 1;
+  max-width: 100%;
+}
+
+.info-column {
+  flex: 1;
+  max-width: 50%;
+  overflow-y: auto;
+  padding: 20px;
+}
+
+ul {
+  list-style-type: none;
+  padding: 0;
+}
+
+li {
+  padding: 5px 0;
+}
+
+/* Style for hovered countries on the SVG map */
+/* Remove the duplicate definitions and keep this one */
+path.hovered {
+  fill: #ffcc00; /* Use a color that is visually noticeable on hover */
+  cursor: pointer;
+}
+
+/* Style for selected countries on the SVG map */
+.selected {
+  fill: green;
+}
+  
