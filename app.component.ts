@@ -8,32 +8,30 @@ import { DomSanitizer } from '@angular/platform-browser';
   styleUrls: ['./app.component.css']
 })
 export class AppComponent implements OnInit, AfterViewInit {
-  svgContent: any; // This will hold the SVG content
-  svgContentLoaded = false; // Flag to indicate when the SVG content is loaded and ready
+  svgContent: any; // Let's change it to any to accommodate different types, including SafeHtml
+  svgContentLoaded = false; // Flag to indicate when the SVG is loaded and ready to have event listeners
 
   constructor(
     private elRef: ElementRef,
     private renderer: Renderer2,
     private http: HttpClient,
     private changeDetector: ChangeDetectorRef,
-    private sanitizer: DomSanitizer // Sanitizer to bypass HTML sanitization
+    private sanitizer: DomSanitizer
   ) {}
 
   ngOnInit(): void {
-    this.loadSvgContent(); // Load the SVG content when the component initializes
+    this.loadSvgContent();
   }
 
   ngAfterViewInit(): void {
-    // Use this hook to add event listeners after the view has been initialized
-    // This ensures the SVG is in the DOM before adding listeners
+    this.changeDetector.detectChanges();
   }
 
   ngAfterViewChecked(): void {
-    // Each time the view is checked, we see if the SVG content is ready
-    // If it is, we add event listeners
     if (this.svgContentLoaded) {
       this.addEventListenersToCountryPaths();
-      this.svgContentLoaded = false; // Reset the flag to avoid adding listeners more than once
+      // Reset the flag to avoid multiple additions
+      this.svgContentLoaded = false;
     }
   }
 
@@ -41,48 +39,46 @@ export class AppComponent implements OnInit, AfterViewInit {
     this.http.get('assets/world (1).svg', { responseType: 'text' })
       .subscribe({
         next: (svgData: string) => {
+          // Bypass security for SVG content assuming it is sanitized and secure
           this.svgContent = this.sanitizer.bypassSecurityTrustHtml(svgData);
-          this.svgContentLoaded = true; // Signal that the content is loaded and listeners can be added
-          // Detect changes to ensure Angular updates the DOM with the SVG content
-          this.changeDetector.detectChanges();
+          this.svgContentLoaded = true; // Indicate that SVG content is loaded
+          this.changeDetector.detectChanges(); // Detect changes to update the view
         },
         error: (error) => {
-          console.error('Failed to load the SVG content:', error);
+          console.error('Error loading SVG content:', error);
         }
       });
   }
 
   private addEventListenersToCountryPaths(): void {
-    // This is where we add the mouse event listeners
+    console.log('Adding event listeners...');
     const svgElement: SVGElement | null = this.elRef.nativeElement.querySelector('svg');
-    if (svgElement && !this.svgContentLoaded) {
+    if (svgElement) {
       const paths = svgElement.querySelectorAll('path');
       paths.forEach((path) => {
         this.renderer.listen(path, 'mouseover', (event) => this.onCountryHover(event));
         this.renderer.listen(path, 'mouseout', (event) => this.onCountryOut(event));
         this.renderer.listen(path, 'click', (event) => this.onCountrySelect(event));
       });
-      this.svgContentLoaded = true; // Prevent adding event listeners multiple times
+      console.log('Event listeners added');
     }
   }
 
-  // Event handler for mouseover
-  onCountryHover(event: Event): void {
-    const targetElement = event.target as Element;
-    targetElement.classList.add('hovered'); // Add 'hovered' class for styling
+  onCountryHover(event: MouseEvent): void {
+    const countryElement = event.target as SVGElement;
+    countryElement.classList.add('hovered');
+    console.log('Hovered:', countryElement.id);
   }
 
-  // Event handler for mouseout
-  onCountryOut(event: Event): void {
-    const targetElement = event.target as Element;
-    targetElement.classList.remove('hovered'); // Remove 'hovered' class
+  onCountryOut(event: MouseEvent): void {
+    const countryElement = event.target as SVGElement;
+    countryElement.classList.remove('hovered');
+    console.log('Hover out:', countryElement.id);
   }
 
-  // Event handler for click
-  onCountrySelect(event: Event): void {
-    const targetElement = event.target as Element;
-    const countryCode = targetElement.id;
-    // Call an API or perform other actions using countryCode
-    console.log('Country selected:', countryCode);
+  onCountrySelect(event: MouseEvent): void {
+    const countryElement = event.target as SVGElement;
+    console.log('Selected:', countryElement.id);
+    // Perform additional actions here, like an API call using the country ID
   }
 }
