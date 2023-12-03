@@ -1,40 +1,44 @@
 .container {
   display: flex;
   flex-direction: row;
-  max-width: 100%;
-  height: 200vh;
+  align-items: flex-start; /* Align the map and info box to the top */
 }
 
 .map-column {
-  flex: 1;
-  max-width: 100%;
+  flex-grow: 2; /* Allow the map to take up more space */
 }
 
 .info-column {
-  flex: 1;
-  max-width: 50%;
-  overflow-y: auto;
-  padding: 20px;
+  flex-grow: 1; /* The info-column will take up the remaining space */
+  padding: 10px;
+  border-left: 1px solid #ccc; /* Separating line for visual distinction */
+  max-width: 25%; /* Limit the width of the info box */
 }
 
-ul {
-  list-style-type: none;
-  padding: 0;
+/* Definition list (dl) for structured country information */
+.info-column dl {
+  margin-top: 0;
 }
 
-li {
-  padding: 5px 0;
+.info-column dt {
+  font-weight: bold; /* Make the term bold */
 }
 
-/* Style for hovered countries on the SVG map */
-/* Remove the duplicate definitions and keep this one */
-path.hovered {
-  fill: #ffcc00; /* Use a color that is visually noticeable on hover */
-  cursor: pointer;
+.info-column dd {
+  margin-left: 0; /* Remove the default margin to align with the term */
+  margin-bottom: 10px; /* Add some spacing between each description */
 }
 
-/* Style for selected countries on the SVG map */
+/* Hide the country info box by default and only show it when there's info to display */
+.info-column:not(:empty) {
+  display: block;
+}
+
+.hovered {
+  fill: yellow; /* Highlight color for hovered countries (temporary color for testing) */
+  cursor: pointer; /* Change the cursor to indicate clickable areas */
+}
+
 .selected {
-  fill: green;
+  fill: green; /* Color for selected countries */
 }
-  
