@@ -1,6 +1,7 @@
 import { Component, ElementRef, Renderer2, OnInit, AfterViewInit, ChangeDetectorRef } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { DomSanitizer } from '@angular/platform-browser';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser'; // Import DomSanitizer for SafeHtml
+import { CountryInfoService } from './country-info.service'; // Update the path to match your service's location
 
 @Component({
   selector: 'app-root',
@@ -8,15 +9,18 @@ import { DomSanitizer } from '@angular/platform-browser';
   styleUrls: ['./app.component.css']
 })
 export class AppComponent implements OnInit, AfterViewInit {
-  svgContent: any; // Let's change it to any to accommodate different types, including SafeHtml
-  svgContentLoaded = false; // Flag to indicate when the SVG is loaded and ready to have event listeners
+  svgContent!: SafeHtml;
+  svgContentLoaded = false; // Flag indicating SVG content has been loaded
+  // Initialize countryInfo with empty values
+  countryInfo = { name: '', capital: '', region: '', incomeLevel: '' };
 
   constructor(
     private elRef: ElementRef,
     private renderer: Renderer2,
     private http: HttpClient,
     private changeDetector: ChangeDetectorRef,
-    private sanitizer: DomSanitizer
+    private sanitizer: DomSanitizer,
+    private countryInfoService: CountryInfoService // Add the CountryInfoService
   ) {}
 
   ngOnInit(): void {
@@ -24,14 +28,15 @@ export class AppComponent implements OnInit, AfterViewInit {
   }
 
   ngAfterViewInit(): void {
+    // Detect changes to ensure the rendered SVG content is up-to-date
     this.changeDetector.detectChanges();
   }
 
   ngAfterViewChecked(): void {
+    // Add event listeners if the SVG content is ready
     if (this.svgContentLoaded) {
       this.addEventListenersToCountryPaths();
-      // Reset the flag to avoid multiple additions
-      this.svgContentLoaded = false;
+      this.svgContentLoaded = false; // Prevent adding listeners more than once
     }
   }
 
@@ -39,46 +44,59 @@ export class AppComponent implements OnInit, AfterViewInit {
     this.http.get('assets/world (1).svg', { responseType: 'text' })
       .subscribe({
         next: (svgData: string) => {
-          // Bypass security for SVG content assuming it is sanitized and secure
           this.svgContent = this.sanitizer.bypassSecurityTrustHtml(svgData);
-          this.svgContentLoaded = true; // Indicate that SVG content is loaded
+          this.svgContentLoaded = true; // The content is now ready
           this.changeDetector.detectChanges(); // Detect changes to update the view
         },
         error: (error) => {
-          console.error('Error loading SVG content:', error);
+          console.error('Failed to load SVG content:', error);
         }
       });
   }
 
   private addEventListenersToCountryPaths(): void {
-    console.log('Adding event listeners...');
     const svgElement: SVGElement | null = this.elRef.nativeElement.querySelector('svg');
     if (svgElement) {
       const paths = svgElement.querySelectorAll('path');
       paths.forEach((path) => {
         this.renderer.listen(path, 'mouseover', (event) => this.onCountryHover(event));
-        this.renderer.listen(path, 'mouseout', (event) => this.onCountryOut(event));
-        this.renderer.listen(path, 'click', (event) => this.onCountrySelect(event));
       });
-      console.log('Event listeners added');
+      console.log('Event listeners added to SVG paths.');
     }
   }
 
   onCountryHover(event: MouseEvent): void {
     const countryElement = event.target as SVGElement;
+    const countryId = countryElement.id;
+    console.log('Hovered over country ID:', countryId);
+  
+    this.countryInfoService.getCountryData(countryId).subscribe({
+      next: (data) => {
+        this.countryInfo = {
+          name: data.countryDetails?.name || 'Country name',
+          capital: data.countryDetails?.capital || 'Capital City',
+          region: data.countryDetails?.region || 'Region Name',
+          incomeLevel: data.incomeLevel || 'Income Level'
+          // ... any other properties
+        };
+      },
+      error: (error) => {
+        console.error('Error fetching country data:', error);
+        // Handle error case
+      }
+    });
+    
+  
     countryElement.classList.add('hovered');
-    console.log('Hovered:', countryElement.id);
   }
 
+  // Event handler method for mouseout to clear information
   onCountryOut(event: MouseEvent): void {
     const countryElement = event.target as SVGElement;
     countryElement.classList.remove('hovered');
-    console.log('Hover out:', countryElement.id);
+    // Optionally clear country info when not hovering
+    this.countryInfo = { name: '', capital: '', region: '', incomeLevel: ''};
   }
 
-  onCountrySelect(event: MouseEvent): void {
-    const countryElement = event.target as SVGElement;
-    console.log('Selected:', countryElement.id);
-    // Perform additional actions here, like an API call using the country ID
-  }
+  // Additional methods such as onCountrySelect would go here...
 }
