@@ -1,2 +1,21 @@
 <!-- app.component.html -->
-<div [innerHTML]="svgContent"></div>
+<div class="container">
+    <div class="map-column">
+      <!-- The SVG map will be injected here -->
+      <div [innerHTML]="svgContent"></div>
+    </div>
+    <div class="info-column">
+      <!-- Display box for country information -->
+      <h3>Country Information</h3>
+      <dl *ngIf="countryInfo.name">
+        <dt>Name</dt>
+        <dd>{{countryInfo.name}}</dd>
+        <dt>Capital</dt>
+        <dd>{{countryInfo.capital}}</dd>
+        <dt>Region</dt>
+        <dd>{{countryInfo.region}}</dd>
+        <dt>Income Level</dt>
+        <dd>{{countryInfo.incomeLevel}}</dd>
+      </dl>
+    </div>
+  </div>
