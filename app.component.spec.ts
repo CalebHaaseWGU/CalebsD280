@@ -11,17 +11,4 @@ describe('AppComponent', () => {
     const app = fixture.componentInstance;
     expect(app).toBeTruthy();
   });
-
-  //it(`should have as title 'your-project-name'`, () => {
-   // const fixture = TestBed.createComponent(AppComponent);
-   // const app = fixture.componentInstance;
-    //expect(app.title).toEqual('your-project-name');
-  //});
-
-  //it('should render title', () => {
-   // const fixture = TestBed.createComponent(AppComponent);
-   // fixture.detectChanges();
-   // const compiled = fixture.nativeElement as HTMLElement;
-   // expect(compiled.querySelector('.content span')?.textContent).toContain('your-project-name app is running!');
- // });
 });
