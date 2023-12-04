@@ -3,6 +3,16 @@ import { HttpClient } from '@angular/common/http';
 import { Observable, of, forkJoin } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
 
+// Define an interface for the expected structure of the GeoNames API response
+interface GeoNamesResponse {
+  geonames: Array<{
+    countryName: string;
+    capital: string;
+    continentName: string;
+    // Add any other properties that might be in the response
+  }>;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -15,10 +25,16 @@ export class CountryInfoService {
   // Fetch country details from GeoNames API
   getCountryDetails(countryCode: string): Observable<any> {
     const url = `${this.geonamesApiUrl}&country=${countryCode}`;
-    return this.http.get(url).pipe(
+    return this.http.get<GeoNamesResponse>(url).pipe(
       map(response => {
-        console.log('GeoNames API response:', response);
-        return response;
+        // Access the geonames array in the response to get the country data
+        const countryData = response.geonames[0]; // Get the first (and likely only) item
+        return {
+          name: countryData.countryName,
+          capital: countryData.capital,
+          region: countryData.continentName
+          // Add any other properties you need to extract from the response
+        };
       }),
       catchError(error => {
         console.error('Error fetching country details:', error);
@@ -28,22 +44,19 @@ export class CountryInfoService {
   }
 
   // Fetch income level from Worldbank API for a specific country
-getCountryIncomeLevel(countryCode: string): Observable<any> {
-  const url = `${this.worldbankApiUrl}${countryCode}?format=json`;
-  return this.http.get<any[]>(url).pipe(
-    map(response => {
-      // Using type assertion to inform TypeScript of the expected structure
-      const data = response as any[];
-      console.log('World Bank API response:', data);
-      return data[1]?.[0]?.incomeLevel?.value || 'Not available';
-    }),
-    catchError(error => {
-      console.error('Error fetching income level:', error);
-      return of('Not available');
-    })
-  );
-}
-
+  getCountryIncomeLevel(countryCode: string): Observable<any> {
+    const url = `${this.worldbankApiUrl}${countryCode}?format=json`;
+    return this.http.get<any[]>(url).pipe(
+      map(response => {
+        const data = response[1][0]; // Access the data for the country
+        return data.incomeLevel.value || 'Not available';
+      }),
+      catchError(error => {
+        console.error('Error fetching income level:', error);
+        return of('Not available');
+      })
+    );
+  }
 
   // Fetch all required country data for a specific country
   getCountryData(countryCode: string): Observable<any> {
@@ -52,17 +65,20 @@ getCountryIncomeLevel(countryCode: string): Observable<any> {
       incomeLevel: this.getCountryIncomeLevel(countryCode)
     }).pipe(
       map(result => {
-        console.log('Combined API response:', result);
-        // Existing logic to process the result...
-        return result; // Replace with your existing return logic
+        return {
+          ...result.countryDetails,
+          incomeLevel: result.incomeLevel
+        };
       }),
       catchError(error => {
         console.error('Error fetching combined country data:', error);
         return of({
-          // Existing error handling logic...
+          name: 'Unavailable',
+          capital: 'Unavailable',
+          region: 'Unavailable',
+          incomeLevel: 'Unavailable'
         });
       })
     );
   }
 }
-
