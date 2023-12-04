@@ -1,84 +1,102 @@
-import { Injectable } from '@angular/core';
+import { Component, ElementRef, Renderer2, OnInit, AfterViewInit, ChangeDetectorRef } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, of, forkJoin } from 'rxjs';
-import { catchError, map } from 'rxjs/operators';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser'; // Import DomSanitizer for SafeHtml
+import { CountryInfoService } from './country-info.service'; // Update the path to match your service's location
 
-// Define an interface for the expected structure of the GeoNames API response
-interface GeoNamesResponse {
-  geonames: Array<{
-    countryName: string;
-    capital: string;
-    continentName: string;
-    // Add any other properties that might be in the response
-  }>;
-}
-
-@Injectable({
-  providedIn: 'root'
+@Component({
+  selector: 'app-root',
+  templateUrl: './app.component.html',
+  styleUrls: ['./app.component.css']
 })
-export class CountryInfoService {
-  private geonamesApiUrl = 'http://api.geonames.org/countryInfoJSON?username=CalebHaase'; // GeoNames API URL
-  private worldbankApiUrl = 'https://api.worldbank.org/v2/country/'; // World Bank API URL
+export class AppComponent implements OnInit, AfterViewInit {
+  svgContent!: SafeHtml;
+  svgContentLoaded = false; // Flag indicating SVG content has been loaded
+  // Initialize countryInfo with empty values
+  countryInfo = { name: '', capital: '', region: '', incomeLevel: '' };
 
-  constructor(private http: HttpClient) { }
+  constructor(
+    private elRef: ElementRef,
+    private renderer: Renderer2,
+    private http: HttpClient,
+    private changeDetector: ChangeDetectorRef,
+    private sanitizer: DomSanitizer,
+    private countryInfoService: CountryInfoService // Add the CountryInfoService
+  ) {}
 
-  // Fetch country details from GeoNames API
-  getCountryDetails(countryCode: string): Observable<any> {
-    const url = `${this.geonamesApiUrl}&country=${countryCode}`;
-    return this.http.get<GeoNamesResponse>(url).pipe(
-      map(response => {
-        // Access the geonames array in the response to get the country data
-        const countryData = response.geonames[0]; // Get the first (and likely only) item
-        return {
-          name: countryData.countryName,
-          capital: countryData.capital,
-          region: countryData.continentName
-          // Add any other properties you need to extract from the response
+  ngOnInit(): void {
+    this.loadSvgContent();
+  }
+
+  ngAfterViewInit(): void {
+    // Detect changes to ensure the rendered SVG content is up-to-date
+    this.changeDetector.detectChanges();
+  }
+
+  ngAfterViewChecked(): void {
+    // Add event listeners if the SVG content is ready
+    if (this.svgContentLoaded) {
+      this.addEventListenersToCountryPaths();
+      this.svgContentLoaded = false; // Prevent adding listeners more than once
+    }
+  }
+
+  private loadSvgContent(): void {
+    this.http.get('assets/world (1).svg', { responseType: 'text' })
+      .subscribe({
+        next: (svgData: string) => {
+          this.svgContent = this.sanitizer.bypassSecurityTrustHtml(svgData);
+          this.svgContentLoaded = true; // The content is now ready
+          this.changeDetector.detectChanges(); // Detect changes to update the view
+        },
+        error: (error) => {
+          console.error('Failed to load SVG content:', error);
+        }
+      });
+  }
+
+  private addEventListenersToCountryPaths(): void {
+    const svgElement: SVGElement | null = this.elRef.nativeElement.querySelector('svg');
+    if (svgElement) {
+      const paths = svgElement.querySelectorAll('path');
+      paths.forEach((path) => {
+        this.renderer.listen(path, 'mouseover', (event) => this.onCountryHover(event));
+      });
+      console.log('Event listeners added to SVG paths.');
+    }
+  }
+
+  onCountryHover(event: MouseEvent): void {
+    const countryElement = event.target as SVGElement;
+    const countryId = countryElement.id;
+    console.log('Hovered over country ID:', countryId);
+  
+    this.countryInfoService.getCountryData(countryId).subscribe({
+      next: (data) => {
+        this.countryInfo = {
+          name: data.countryDetails?.name || 'Country name',
+          capital: data.countryDetails?.capital || 'Capital City',
+          region: data.countryDetails?.region || 'Region Name',
+          incomeLevel: data.incomeLevel || 'Income Level'
+          // ... any other properties
         };
-      }),
-      catchError(error => {
-        console.error('Error fetching country details:', error);
-        return of(null);
-      })
-    );
+      },
+      error: (error) => {
+        console.error('Error fetching country data:', error);
+        // Handle error case
+      }
+    });
+    
+  
+    countryElement.classList.add('hovered');
   }
 
-  // Fetch income level from Worldbank API for a specific country
-  getCountryIncomeLevel(countryCode: string): Observable<any> {
-    const url = `${this.worldbankApiUrl}${countryCode}?format=json`;
-    return this.http.get<any[]>(url).pipe(
-      map(response => {
-        const data = response[1][0]; // Access the data for the country
-        return data.incomeLevel.value || 'Not available';
-      }),
-      catchError(error => {
-        console.error('Error fetching income level:', error);
-        return of('Not available');
-      })
-    );
+  // Event handler method for mouseout to clear information
+  onCountryOut(event: MouseEvent): void {
+    const countryElement = event.target as SVGElement;
+    countryElement.classList.remove('hovered');
+    // Optionally clear country info when not hovering
+    this.countryInfo = { name: '', capital: '', region: '', incomeLevel: ''};
   }
 
-  // Fetch all required country data for a specific country
-  getCountryData(countryCode: string): Observable<any> {
-    return forkJoin({
-      countryDetails: this.getCountryDetails(countryCode),
-      incomeLevel: this.getCountryIncomeLevel(countryCode)
-    }).pipe(
-      map(result => {
-        return {
-          ...result.countryDetails,
-          incomeLevel: result.incomeLevel
-        };
-      }),
-      catchError(error => {
-        console.error('Error fetching combined country data:', error);
-        return of({
-          name: 'Unavailable',
-          capital: 'Unavailable',
-          region: 'Unavailable',
-          incomeLevel: 'Unavailable'
-        });
-      })
-    );
-  }
+  // Additional methods such as onCountrySelect would go here...
 }
